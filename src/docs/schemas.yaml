@@ -151,6 +151,76 @@ components:
           type: string
           format: date-time
           example: '2026-11-18T20:15:00.000Z'
+        proofs:
+          type: array
+          description: Comprobantes de entrega subidos (solo metadatos)
+          items:
+            $ref: '#/components/schemas/FileMetadata'
+    DocumentType:
+      type: string
+      enum:
+      - user_document
+      - driver_license
+      - delivery_proof
+      description: user_document = documento de usuario (carpeta documents), driver_license = licencia de repartidor
+        (carpeta licenses), delivery_proof = comprobante de entrega (carpeta proofs)
+    FileMetadata:
+      type: object
+      description: 'Metadatos de un archivo subido. En la base se guarda solo esto: el archivo vive en la carpeta
+        uploads/ del servidor.'
+      properties:
+        originalName:
+          type: string
+          description: Nombre con el que lo subió el cliente
+          example: dni.pdf
+        fileName:
+          type: string
+          description: Nombre generado por el servidor
+          example: 1790000000000-8f73c9b2-a1d4-4c5e-9b1a-0f3d2c1b4a5e.pdf
+        path:
+          type: string
+          description: Ruta relativa donde quedó guardado
+          example: uploads/documents/1790000000000-8f73c9b2-a1d4-4c5e-9b1a-0f3d2c1b4a5e.pdf
+        mimeType:
+          type: string
+          enum:
+          - application/pdf
+          - image/jpeg
+          - image/png
+          example: application/pdf
+        size:
+          type: integer
+          description: Tamaño en bytes
+          example: 24533
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        uploadedAt:
+          type: string
+          format: date-time
+          example: '2026-11-18T20:15:00.000Z'
+    UserDocuments:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Id del usuario
+          example: 665f1c2e8f1b2a0012a4b3c1
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileMetadata'
+    UserDocumentsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Documento cargado correctamente
+          description: Solo al subir un documento
+        payload:
+          $ref: '#/components/schemas/UserDocuments'
     Delivery:
       type: object
       properties:
@@ -262,12 +332,17 @@ components:
           - DELIVERY_NOT_FOUND
           - DUPLICATE_KEY
           - EMAIL_EXISTS
+          - FILE_REQUIRED
+          - FILE_TOO_LARGE
           - FORBIDDEN
           - INTERNAL_SERVER_ERROR
           - INVALID_CREDENTIALS
           - INVALID_DELIVERY_STATUS
+          - INVALID_DOCUMENT_TYPE
           - INVALID_DRIVER
           - INVALID_EMAIL
+          - INVALID_FILE_FIELD
+          - INVALID_FILE_TYPE
           - INVALID_JSON
           - INVALID_MOCK_AMOUNT
           - INVALID_MOCK_ROLE
@@ -287,6 +362,7 @@ components:
           - PRODUCT_NOT_FOUND
           - ROUTE_NOT_FOUND
           - UNAUTHORIZED
+          - UPLOAD_ERROR
           - USER_NOT_FOUND
           - VALIDATION_ERROR
           example: USER_NOT_FOUND
@@ -358,6 +434,17 @@ components:
         status:
           type: string
           example: success
+        payload:
+          $ref: '#/components/schemas/Order'
+    OrderUploadResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Comprobante cargado correctamente
         payload:
           $ref: '#/components/schemas/Order'
     OrderListResponse:

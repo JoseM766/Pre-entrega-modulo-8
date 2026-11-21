@@ -44,3 +44,21 @@ export const getOrderById = async (req, res, next) => {
     next(error);
   }
 };
+
+export const uploadProof = async (req, res, next) => {
+  try {
+    const order = await ordersService.addOrderProof({
+      requester: req.user,
+      orderId: req.params.id,
+      file: req.file,
+    });
+
+    res.status(201).json({
+      status: "success",
+      message: "Comprobante cargado correctamente",
+      payload: toOrderDTO(order),
+    });
+  } catch (error) {
+    next(error);
+  }
+};

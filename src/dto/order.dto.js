@@ -1,3 +1,5 @@
+import { toFileDTO } from "./file.dto.js";
+
 export const toOrderItemDTO = (item) => ({
   name: item.name,
   quantity: item.quantity,
@@ -15,6 +17,7 @@ export const toOrderDTO = (order) => {
     total: order.total,
     status: order.status,
     priority: order.priority,
+    proofs: (order.proofs ?? []).map(toFileDTO),
     createdAt: order.createdAt,
   };
 };

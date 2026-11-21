@@ -33,3 +33,11 @@ export const updateOrderStatusById = async (id, status) => {
   if (!isValidId(id)) return null;
   return Order.findByIdAndUpdate(id, { status }, { new: true }).select(DEFAULT_PROJECTION).lean();
 };
+
+// Agrega los metadatos de un comprobante al pedido y devuelve el pedido actualizado.
+export const addProofToOrder = async (orderId, fileData) => {
+  if (!isValidId(orderId)) return null;
+  return Order.findByIdAndUpdate(orderId, { $push: { proofs: fileData } }, { new: true, runValidators: true })
+    .select(DEFAULT_PROJECTION)
+    .lean();
+};

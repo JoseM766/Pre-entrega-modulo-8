@@ -107,3 +107,40 @@ export const PAGINATION = Object.freeze({
   DEFAULT_LIMIT: 10,
   MAX_LIMIT: 50,
 });
+
+// --- Carga de archivos (Módulo 7) ---
+
+export const DOCUMENT_TYPES = Object.freeze({
+  USER_DOCUMENT: "user_document",
+  DRIVER_LICENSE: "driver_license",
+  DELIVERY_PROOF: "delivery_proof",
+});
+
+// Tipos que se pueden indicar al subir un documento de usuario (el comprobante tiene su propio endpoint).
+export const USER_DOCUMENT_TYPES = Object.freeze([DOCUMENT_TYPES.USER_DOCUMENT, DOCUMENT_TYPES.DRIVER_LICENSE]);
+
+// Subcarpetas dentro de la carpeta de uploads.
+export const UPLOAD_FOLDERS = Object.freeze({
+  DOCUMENTS: "documents",
+  LICENSES: "licenses",
+  PROOFS: "proofs",
+});
+
+// En qué subcarpeta se guarda cada tipo de documento.
+export const DOCUMENT_TYPE_FOLDERS = Object.freeze({
+  [DOCUMENT_TYPES.USER_DOCUMENT]: UPLOAD_FOLDERS.DOCUMENTS,
+  [DOCUMENT_TYPES.DRIVER_LICENSE]: UPLOAD_FOLDERS.LICENSES,
+  [DOCUMENT_TYPES.DELIVERY_PROOF]: UPLOAD_FOLDERS.PROOFS,
+});
+
+export const FILE_UPLOAD = Object.freeze({
+  MAX_SIZE_BYTES: 5 * 1024 * 1024, // 5 MB
+  // Nombre del campo del form-data que contiene el archivo, según el endpoint
+  FIELDS: Object.freeze({ DOCUMENT: "document", PROOF: "proof" }),
+  // Tipos aceptados: MIME type -> extensiones permitidas (la primera se usa al nombrar el archivo)
+  ALLOWED_TYPES: Object.freeze({
+    "application/pdf": Object.freeze([".pdf"]),
+    "image/jpeg": Object.freeze([".jpg", ".jpeg"]),
+    "image/png": Object.freeze([".png"]),
+  }),
+});

@@ -1,6 +1,7 @@
 import { logger } from "../config/logger.js";
 import * as ordersRepository from "../repositories/orders.repository.js";
-import { USER_ROLES, ORDER_STATUS, DELIVERY_PRIORITY } from "../constants/index.js";
+import * as deliveriesRepository from "../repositories/deliveries.repository.js";
+import { USER_ROLES, ORDER_STATUS, DELIVERY_PRIORITY, DOCUMENT_TYPES } from "../constants/index.js";
 import {
   MissingFieldsError,
   InvalidOrderItemsError,
@@ -8,7 +9,9 @@ import {
   InvalidOrderStatusError,
   OrderNotFoundError,
   ForbiddenError,
+  FileRequiredError,
 } from "../errors/index.js";
+import { buildFileMetadata, deleteFileQuietly } from "../utils/file-storage.js";
 import { hasRequiredOrderFields, areValidOrderItems } from "../utils/validators.js";
 import { parsePagination, buildPage } from "../utils/pagination.js";
 
@@ -77,4 +80,38 @@ export const getOrderById = async ({ requester, orderId }) => {
   }
 
   return order;
+};
+
+// --- Subir un comprobante de entrega al pedido ---
+// Lo pueden hacer el admin o el repartidor al que se le asignó la entrega de ese pedido.
+// Orden de validaciones: el pedido existe -> permisos -> hay archivo. Si algo falla, se borra
+// el archivo que Multer ya guardó (no quedan archivos huérfanos).
+export const addOrderProof = async ({ requester, orderId, file }) => {
+  try {
+    const order = await ordersRepository.findOrderById(orderId);
+    if (!order) {
+      logger.warning(`Pedido no encontrado: id ${orderId}`);
+      throw new OrderNotFoundError();
+    }
+
+    if (requester.role !== USER_ROLES.ADMIN) {
+      const delivery = await deliveriesRepository.findDeliveryByOrderId(orderId);
+      if (!delivery || String(delivery.driver) !== String(requester.id)) {
+        throw new ForbiddenError();
+      }
+    }
+
+    if (!file) {
+      throw new FileRequiredError();
+    }
+
+    const metadata = buildFileMetadata(file, DOCUMENT_TYPES.DELIVERY_PROOF);
+    const updatedOrder = await ordersRepository.addProofToOrder(orderId, metadata);
+
+    logger.info(`Comprobante asociado al pedido ${orderId}: ${metadata.fileName} (${metadata.size} bytes)`);
+    return updatedOrder;
+  } catch (error) {
+    await deleteFileQuietly(file?.path);
+    throw error;
+  }
 };

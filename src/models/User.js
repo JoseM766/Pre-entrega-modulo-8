@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { USER_ROLES } from "../constants/index.js";
+import { fileSchema } from "./file.schema.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,6 +27,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: Object.values(USER_ROLES),
       default: USER_ROLES.USER,
+    },
+    // Documentos subidos (DNI, licencia, etc.): solo metadatos, el archivo está en uploads/
+    documents: {
+      type: [fileSchema],
+      default: [],
     },
     // Solo se usa en repartidores (role DRIVER)
     isAvailable: {

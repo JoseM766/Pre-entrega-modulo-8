@@ -141,3 +141,245 @@ paths:
                     status: error
                     error: DATABASE_ERROR
                     message: Ocurrió un error con la base de datos
+  /api/users/{id}/documents:
+    post:
+      tags:
+      - Users
+      summary: Subir un documento de usuario
+      description: 'Recibe un archivo por `multipart/form-data` y lo asocia al usuario indicado. Formatos aceptados:
+        PDF (`application/pdf`), JPG (`image/jpeg`) y PNG (`image/png`). Tamaño máximo: 5 MB. Un solo archivo por
+        petición.
+
+
+        **Permisos:** cada usuario sube sus propios documentos; el admin, los de cualquiera.
+
+
+        **Dónde se guarda:** `user_document` en `uploads/documents` y `driver_license` en `uploads/licenses`. Solo
+        se guardan los metadatos en la base (`documents` del usuario).'
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id del usuario
+        schema:
+          type: string
+          example: 665f1c2e8f1b2a0012a4b3c1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - document
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Archivo del documento (PDF, JPG o PNG, hasta 5 MB)
+                type:
+                  type: string
+                  description: 'Opcional. Tipo de documento: `user_document` (por defecto) o `driver_license`. `delivery_proof`
+                    no se admite acá.'
+                  default: user_document
+                  enum:
+                  - user_document
+                  - driver_license
+      responses:
+        '201':
+          description: 'Documento cargado: devuelve todos los documentos del usuario'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDocumentsResponse'
+        '400':
+          description: 'Datos inválidos: FILE_REQUIRED, INVALID_FILE_TYPE, INVALID_FILE_FIELD, INVALID_DOCUMENT_TYPE'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FILE_REQUIRED:
+                  summary: FILE_REQUIRED
+                  value:
+                    status: error
+                    error: FILE_REQUIRED
+                    message: Debe enviar un archivo
+                INVALID_FILE_TYPE:
+                  summary: INVALID_FILE_TYPE
+                  value:
+                    status: error
+                    error: INVALID_FILE_TYPE
+                    message: 'El tipo de archivo no está permitido. Se aceptan: application/pdf, image/jpeg, image/png'
+                INVALID_FILE_FIELD:
+                  summary: INVALID_FILE_FIELD
+                  value:
+                    status: error
+                    error: INVALID_FILE_FIELD
+                    message: El archivo debe enviarse en un único campo llamado "document"
+                INVALID_DOCUMENT_TYPE:
+                  summary: INVALID_DOCUMENT_TYPE
+                  value:
+                    status: error
+                    error: INVALID_DOCUMENT_TYPE
+                    message: 'El tipo de documento debe ser uno de: user_document, driver_license'
+        '401':
+          description: 'No autenticado: UNAUTHORIZED'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                UNAUTHORIZED:
+                  summary: UNAUTHORIZED
+                  value:
+                    status: error
+                    error: UNAUTHORIZED
+                    message: No autenticado
+        '403':
+          description: 'Sin permisos: FORBIDDEN'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FORBIDDEN:
+                  summary: FORBIDDEN
+                  value:
+                    status: error
+                    error: FORBIDDEN
+                    message: No tenés permisos para realizar esta acción
+        '404':
+          description: 'Recurso inexistente: USER_NOT_FOUND'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                USER_NOT_FOUND:
+                  summary: USER_NOT_FOUND
+                  value:
+                    status: error
+                    error: USER_NOT_FOUND
+                    message: El usuario no existe
+        '413':
+          description: 'Archivo demasiado grande: FILE_TOO_LARGE'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FILE_TOO_LARGE:
+                  summary: FILE_TOO_LARGE
+                  value:
+                    status: error
+                    error: FILE_TOO_LARGE
+                    message: El archivo supera el tamaño máximo permitido (5 MB)
+        '500':
+          description: 'Error interno: INTERNAL_SERVER_ERROR, DATABASE_ERROR, UPLOAD_ERROR'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                INTERNAL_SERVER_ERROR:
+                  summary: INTERNAL_SERVER_ERROR
+                  value:
+                    status: error
+                    error: INTERNAL_SERVER_ERROR
+                    message: Error interno del servidor
+                DATABASE_ERROR:
+                  summary: DATABASE_ERROR
+                  value:
+                    status: error
+                    error: DATABASE_ERROR
+                    message: Ocurrió un error con la base de datos
+                UPLOAD_ERROR:
+                  summary: UPLOAD_ERROR
+                  value:
+                    status: error
+                    error: UPLOAD_ERROR
+                    message: No se pudo guardar el archivo
+    get:
+      tags:
+      - Users
+      summary: Ver los documentos de un usuario
+      description: Devuelve los metadatos de los documentos del usuario. Cada usuario ve los suyos; el admin, los
+        de cualquiera.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id del usuario
+        schema:
+          type: string
+          example: 665f1c2e8f1b2a0012a4b3c1
+      responses:
+        '200':
+          description: Documentos del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDocumentsResponse'
+        '401':
+          description: 'No autenticado: UNAUTHORIZED'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                UNAUTHORIZED:
+                  summary: UNAUTHORIZED
+                  value:
+                    status: error
+                    error: UNAUTHORIZED
+                    message: No autenticado
+        '403':
+          description: 'Sin permisos: FORBIDDEN'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FORBIDDEN:
+                  summary: FORBIDDEN
+                  value:
+                    status: error
+                    error: FORBIDDEN
+                    message: No tenés permisos para realizar esta acción
+        '404':
+          description: 'Recurso inexistente: USER_NOT_FOUND'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                USER_NOT_FOUND:
+                  summary: USER_NOT_FOUND
+                  value:
+                    status: error
+                    error: USER_NOT_FOUND
+                    message: El usuario no existe
+        '500':
+          description: 'Error interno: INTERNAL_SERVER_ERROR, DATABASE_ERROR'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                INTERNAL_SERVER_ERROR:
+                  summary: INTERNAL_SERVER_ERROR
+                  value:
+                    status: error
+                    error: INTERNAL_SERVER_ERROR
+                    message: Error interno del servidor
+                DATABASE_ERROR:
+                  summary: DATABASE_ERROR
+                  value:
+                    status: error
+                    error: DATABASE_ERROR
+                    message: Ocurrió un error con la base de datos

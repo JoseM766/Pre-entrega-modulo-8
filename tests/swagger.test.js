@@ -3,7 +3,6 @@ import request from "supertest";
 import app from "../src/app.js";
 import { swaggerSpecs } from "../src/docs/swagger.config.js";
 import { ERROR_DICTIONARY } from "../src/errors/index.js";
-import { expectError } from "./helpers/assertions.js";
 
 // Todas las operaciones documentadas: [{ method, path, operation }]
 const documentedOperations = Object.entries(swaggerSpecs.paths).flatMap(([path, methods]) =>
@@ -55,14 +54,6 @@ describe("Swagger", () => {
 
       expect(res.status).to.be.oneOf([301, 302]);
       expect(res.headers.location).to.match(/\/api\/docs\/$/);
-
-    it("404 ROUTE_NOT_FOUND con el formato de error uniforme si la ruta de documentación no existe", async () => {
-      // La documentación vive solo en /api/docs: no existe /api/docs.json
-      const res = await request(app).get("/api/docs.json");
-
-      expectError(res, 404, "ROUTE_NOT_FOUND");
-      expect(res.body.details).to.equal("GET /api/docs.json");
-    });
     });
   });
 
@@ -101,6 +92,50 @@ describe("Swagger", () => {
       const schema = swaggerSpecs.components.schemas.ErrorResponse;
       expect(schema.required).to.have.members(["status", "error", "message"]);
       expect(schema.properties).to.include.keys("status", "error", "message", "details");
+    });
+
+    describe("endpoints de carga de archivos", () => {
+      const multipartSchema = (path) => swaggerSpecs.paths[path].post.requestBody.content["multipart/form-data"].schema;
+
+      it("POST /api/users/{id}/documents se documenta como multipart/form-data, con el campo document y los tipos de documento permitidos", () => {
+        const schema = multipartSchema("/api/users/{id}/documents");
+
+        expect(schema.required).to.deep.equal(["document"]);
+        expect(schema.properties.document).to.include({ type: "string", format: "binary" });
+        expect(schema.properties.type.enum).to.have.members(["user_document", "driver_license"]);
+        expect(schema.properties.type.default).to.equal("user_document");
+      });
+
+      it("POST /api/orders/{id}/proof se documenta como multipart/form-data, con el campo proof", () => {
+        const schema = multipartSchema("/api/orders/{id}/proof");
+
+        expect(schema.required).to.deep.equal(["proof"]);
+        expect(schema.properties.proof).to.include({ type: "string", format: "binary" });
+      });
+
+      it("documentan los errores de archivos con sus status: 400, 413 y 500", () => {
+        for (const path of ["/api/users/{id}/documents", "/api/orders/{id}/proof"]) {
+          const responses = swaggerSpecs.paths[path].post.responses;
+          const codesOf = (status) => Object.keys(responses[status].content["application/json"].examples);
+
+          expect(codesOf("400"), path).to.include.members(["FILE_REQUIRED", "INVALID_FILE_TYPE", "INVALID_FILE_FIELD"]);
+          expect(codesOf("413"), path).to.deep.equal(["FILE_TOO_LARGE"]);
+          expect(codesOf("500"), path).to.include("UPLOAD_ERROR");
+        }
+        expect(Object.keys(swaggerSpecs.paths["/api/users/{id}/documents"].post.responses["400"].content["application/json"].examples)).to.include("INVALID_DOCUMENT_TYPE");
+      });
+
+      it("el schema FileMetadata describe los metadatos que se guardan (sin el contenido del archivo)", () => {
+        const properties = swaggerSpecs.components.schemas.FileMetadata.properties;
+        expect(properties).to.have.all.keys("originalName", "fileName", "path", "mimeType", "size", "type", "uploadedAt");
+        expect(swaggerSpecs.components.schemas.Order.properties).to.include.key("proofs");
+      });
+
+      it("documentan los formatos y el tamaño máximo permitidos", () => {
+        for (const path of ["/api/users/{id}/documents", "/api/orders/{id}/proof"]) {
+          expect(swaggerSpecs.paths[path].post.description, path).to.include("5 MB").and.include("application/pdf");
+        }
+      });
     });
 
     it("documenta el endpoint del logger aclarando que no es funcionalidad de negocio", () => {

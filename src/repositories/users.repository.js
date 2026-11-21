@@ -48,3 +48,11 @@ export const insertManyUsers = async (usersData) => {
 export const findUsersByRole = (role) => {
   return User.find({ role }).select(PUBLIC_PROJECTION).lean();
 };
+
+// Agrega los metadatos de un documento al usuario y devuelve el usuario actualizado.
+export const addDocumentToUser = async (userId, fileData) => {
+  if (!isValidId(userId)) return null;
+  return User.findByIdAndUpdate(userId, { $push: { documents: fileData } }, { new: true, runValidators: true })
+    .select(PUBLIC_PROJECTION)
+    .lean();
+};

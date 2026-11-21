@@ -50,6 +50,10 @@ export const config = Object.freeze({
     level: process.env.NODE_ENV === NODE_ENVIRONMENTS.PRODUCTION ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG,
     dir: "logs",
   }),
+  // Carpeta donde se guardan los archivos subidos (en test se usa una subcarpeta aparte, que se limpia sola).
+  uploads: Object.freeze({
+    dir: process.env.NODE_ENV === NODE_ENVIRONMENTS.TEST ? "uploads/test" : "uploads",
+  }),
   jwt: Object.freeze({
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || "1h",

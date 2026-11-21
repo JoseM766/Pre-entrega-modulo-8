@@ -33,3 +33,8 @@ export const updateDeliveryStatusById = async (id, status) => {
   if (!isValidId(id)) return null;
   return Delivery.findByIdAndUpdate(id, { status }, { new: true }).select(DEFAULT_PROJECTION).lean();
 };
+
+export const findDeliveryByOrderId = async (orderId) => {
+  if (!isValidId(orderId)) return null;
+  return Delivery.findOne({ order: orderId }).select(DEFAULT_PROJECTION).lean();
+};

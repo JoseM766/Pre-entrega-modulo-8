@@ -298,3 +298,149 @@ paths:
                     status: error
                     error: DATABASE_ERROR
                     message: Ocurrió un error con la base de datos
+  /api/orders/{id}/proof:
+    post:
+      tags:
+      - Orders
+      summary: Subir el comprobante de entrega de un pedido
+      description: 'Recibe el comprobante por `multipart/form-data` y lo asocia al pedido. Formatos aceptados: PDF
+        (`application/pdf`), JPG (`image/jpeg`) y PNG (`image/png`). Tamaño máximo: 5 MB. Un solo archivo por petición.
+
+
+        **Permisos:** el repartidor asignado a la entrega de ese pedido, o un admin.
+
+
+        **Dónde se guarda:** en `uploads/proofs`. Solo se guardan los metadatos en la base (`proofs` del pedido)
+        y se devuelve el pedido actualizado.'
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id del pedido
+        schema:
+          type: string
+          example: 665f1c2e8f1b2a0012a4b3c1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - proof
+              properties:
+                proof:
+                  type: string
+                  format: binary
+                  description: Archivo del comprobante (PDF, JPG o PNG, hasta 5 MB)
+      responses:
+        '201':
+          description: 'Comprobante cargado: devuelve el pedido actualizado'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderUploadResponse'
+        '400':
+          description: 'Datos inválidos: FILE_REQUIRED, INVALID_FILE_TYPE, INVALID_FILE_FIELD'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FILE_REQUIRED:
+                  summary: FILE_REQUIRED
+                  value:
+                    status: error
+                    error: FILE_REQUIRED
+                    message: Debe enviar un archivo
+                INVALID_FILE_TYPE:
+                  summary: INVALID_FILE_TYPE
+                  value:
+                    status: error
+                    error: INVALID_FILE_TYPE
+                    message: 'El tipo de archivo no está permitido. Se aceptan: application/pdf, image/jpeg, image/png'
+                INVALID_FILE_FIELD:
+                  summary: INVALID_FILE_FIELD
+                  value:
+                    status: error
+                    error: INVALID_FILE_FIELD
+                    message: El archivo debe enviarse en un único campo llamado "proof"
+        '401':
+          description: 'No autenticado: UNAUTHORIZED'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                UNAUTHORIZED:
+                  summary: UNAUTHORIZED
+                  value:
+                    status: error
+                    error: UNAUTHORIZED
+                    message: No autenticado
+        '403':
+          description: 'Sin permisos: FORBIDDEN'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FORBIDDEN:
+                  summary: FORBIDDEN
+                  value:
+                    status: error
+                    error: FORBIDDEN
+                    message: No tenés permisos para realizar esta acción
+        '404':
+          description: 'Recurso inexistente: ORDER_NOT_FOUND'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ORDER_NOT_FOUND:
+                  summary: ORDER_NOT_FOUND
+                  value:
+                    status: error
+                    error: ORDER_NOT_FOUND
+                    message: El pedido no existe
+        '413':
+          description: 'Archivo demasiado grande: FILE_TOO_LARGE'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FILE_TOO_LARGE:
+                  summary: FILE_TOO_LARGE
+                  value:
+                    status: error
+                    error: FILE_TOO_LARGE
+                    message: El archivo supera el tamaño máximo permitido (5 MB)
+        '500':
+          description: 'Error interno: INTERNAL_SERVER_ERROR, DATABASE_ERROR, UPLOAD_ERROR'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                INTERNAL_SERVER_ERROR:
+                  summary: INTERNAL_SERVER_ERROR
+                  value:
+                    status: error
+                    error: INTERNAL_SERVER_ERROR
+                    message: Error interno del servidor
+                DATABASE_ERROR:
+                  summary: DATABASE_ERROR
+                  value:
+                    status: error
+                    error: DATABASE_ERROR
+                    message: Ocurrió un error con la base de datos
+                UPLOAD_ERROR:
+                  summary: UPLOAD_ERROR
+                  value:
+                    status: error
+                    error: UPLOAD_ERROR
+                    message: No se pudo guardar el archivo
