@@ -7,7 +7,11 @@ paths:
       summary: Probar los niveles del logger
       description: '**Herramienta interna de validación, no es una funcionalidad de negocio.** Genera un log de
         cada nivel (debug, http, info, warning, error y fatal) para comprobar que el logger funciona: en consola
-        aparecen según el entorno y en `logs/error-AAAA-MM-DD.log` quedan solo `error` y `fatal`.'
+        aparecen según el entorno y en `logs/error-AAAA-MM-DD.log` quedan solo `error` y `fatal`.
+
+
+        **Herramienta de desarrollo: no está disponible en producción** (`NODE_ENV=production`): allí responde `404
+        ROUTE_NOT_FOUND`, porque genera logs de error y no tiene sentido en un servidor real.'
       responses:
         '200':
           description: Logs generados correctamente

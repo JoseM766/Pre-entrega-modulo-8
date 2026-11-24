@@ -30,6 +30,46 @@ if (!Number.isInteger(port) || port <= 0) {
   throw new Error(`La variable PORT debe ser un número entero positivo. Valor recibido: "${process.env.PORT}"`);
 }
 
+const isProduction = process.env.NODE_ENV === NODE_ENVIRONMENTS.PRODUCTION;
+const isTest = process.env.NODE_ENV === NODE_ENVIRONMENTS.TEST;
+
+// La URI debe ser de MongoDB (falla al inicio con un mensaje claro, en lugar de un error confuso al conectar).
+if (!/^mongodb(\+srv)?:\/\//.test(process.env.MONGODB_URI)) {
+  throw new Error('La variable MONGODB_URI debe empezar con "mongodb://" o "mongodb+srv://".');
+}
+
+// En producción un secreto corto o de ejemplo es un riesgo de seguridad: no se permite.
+const MIN_PRODUCTION_SECRET_LENGTH = 16;
+if (isProduction && process.env.JWT_SECRET.length < MIN_PRODUCTION_SECRET_LENGTH) {
+  throw new Error(
+    `En producción JWT_SECRET debe tener al menos ${MIN_PRODUCTION_SECRET_LENGTH} caracteres (usá un valor largo y aleatorio).`
+  );
+}
+
+// Nivel de logs: por defecto depende del entorno, y se puede ajustar con LOG_LEVEL.
+const defaultLogLevel = isProduction ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG;
+const logLevel = process.env.LOG_LEVEL?.trim() || defaultLogLevel;
+if (!Object.values(LOG_LEVELS).includes(logLevel)) {
+  throw new Error(
+    `La variable LOG_LEVEL tiene un valor inválido: "${logLevel}". Valores permitidos: ${Object.values(LOG_LEVELS).join(", ")}`
+  );
+}
+
+// Swagger: habilitado por defecto en todos los entornos; en producción se puede apagar con SWAGGER_ENABLED=false.
+const swaggerFlag = process.env.SWAGGER_ENABLED?.trim().toLowerCase();
+if (swaggerFlag !== undefined && swaggerFlag !== "" && !["true", "false"].includes(swaggerFlag)) {
+  throw new Error(`La variable SWAGGER_ENABLED debe ser "true" o "false". Valor recibido: "${process.env.SWAGGER_ENABLED}"`);
+}
+const swaggerEnabled = swaggerFlag ? swaggerFlag === "true" : true;
+
+// URL pública de la API (se muestra en Swagger). Opcional: por defecto es el servidor local.
+const apiBaseUrl = process.env.API_BASE_URL?.trim() || `http://localhost:${port}`;
+try {
+  new URL(apiBaseUrl);
+} catch {
+  throw new Error(`La variable API_BASE_URL no es una URL válida. Valor recibido: "${process.env.API_BASE_URL}"`);
+}
+
 const validEnvironments = Object.values(NODE_ENVIRONMENTS);
 
 if (!validEnvironments.includes(process.env.NODE_ENV)) {
@@ -42,17 +82,25 @@ if (!validEnvironments.includes(process.env.NODE_ENV)) {
 export const config = Object.freeze({
   port,
   nodeEnv: process.env.NODE_ENV,
-  isProduction: process.env.NODE_ENV === NODE_ENVIRONMENTS.PRODUCTION,
-  isTest: process.env.NODE_ENV === NODE_ENVIRONMENTS.TEST,
+  isProduction,
+  isTest,
   mongoUri: process.env.MONGODB_URI,
+  apiBaseUrl,
+  // Qué endpoints "internos" están disponibles:
+  //  - devTools (mocks y loggerTest): solo fuera de producción (escriben datos / generan logs de error).
+  //  - swagger: habilitado salvo que se lo apague con SWAGGER_ENABLED=false.
+  features: Object.freeze({
+    devTools: !isProduction,
+    swagger: swaggerEnabled,
+  }),
   // Logging según el entorno: producción registra desde info; desarrollo (y test) desde debug.
   logs: Object.freeze({
-    level: process.env.NODE_ENV === NODE_ENVIRONMENTS.PRODUCTION ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG,
+    level: logLevel,
     dir: "logs",
   }),
   // Carpeta donde se guardan los archivos subidos (en test se usa una subcarpeta aparte, que se limpia sola).
   uploads: Object.freeze({
-    dir: process.env.NODE_ENV === NODE_ENVIRONMENTS.TEST ? "uploads/test" : "uploads",
+    dir: isTest ? "uploads/test" : "uploads",
   }),
   jwt: Object.freeze({
     secret: process.env.JWT_SECRET,

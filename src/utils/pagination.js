@@ -2,8 +2,12 @@ import { PAGINATION } from "../constants/index.js";
 
 // Convierte page/limit de la query en números válidos (con tope máximo).
 export const parsePagination = ({ page, limit }) => {
-  const currentPage = Math.max(parseInt(page, 10) || PAGINATION.DEFAULT_PAGE, 1);
-  const pageLimit = Math.min(parseInt(limit, 10) || PAGINATION.DEFAULT_LIMIT, PAGINATION.MAX_LIMIT);
+  // Valores inválidos (texto, 0, negativos) vuelven al valor por defecto; limit nunca supera el máximo.
+  const parsedPage = parseInt(page, 10);
+  const parsedLimit = parseInt(limit, 10);
+
+  const currentPage = parsedPage >= 1 ? parsedPage : PAGINATION.DEFAULT_PAGE;
+  const pageLimit = parsedLimit >= 1 ? Math.min(parsedLimit, PAGINATION.MAX_LIMIT) : PAGINATION.DEFAULT_LIMIT;
 
   return { page: currentPage, limit: pageLimit, skip: (currentPage - 1) * pageLimit };
 };

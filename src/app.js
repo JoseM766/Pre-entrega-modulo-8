@@ -1,6 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import passport from "passport";
+import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import "./config/passport.config.js";
 import productsRouter from "./routes/products.router.js";
@@ -12,23 +13,26 @@ import mocksRouter from "./routes/mocks.router.js";
 import { config } from "./config/index.js";
 import { swaggerSpecs } from "./docs/swagger.config.js";
 import loggerRouter from "./routes/logger.router.js";
+import healthRouter from "./routes/health.router.js";
 import { requestLogger } from "./middlewares/logger.middleware.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
 
+app.disable("x-powered-by"); // no anunciar qué tecnología usa el servidor
+app.use(compression()); // respuestas comprimidas (gzip): menos bytes por la red
 app.use(requestLogger);
-app.use(express.json());
+app.use(express.json()); // límite de body: 100 kb por defecto
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Servidor activo" });
-});
+app.use("/api/health", healthRouter);
 
-// Documentación interactiva (Swagger UI)
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { customSiteTitle: "ShipNow API Docs" }));
+// Documentación interactiva (Swagger UI). Habilitada por defecto; se puede apagar con SWAGGER_ENABLED=false.
+if (config.features.swagger) {
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { customSiteTitle: "ShipNow API Docs" }));
+}
 
 app.use("/api/products", productsRouter);
 app.use("/api/sessions", sessionsRouter);
@@ -36,12 +40,11 @@ app.use("/api/users", usersRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/deliveries", deliveriesRouter);
 
-// Herramienta interna para verificar el logger (genera un log de cada nivel).
-app.use("/api/loggerTest", loggerRouter);
-
-// Herramienta de desarrollo: no se expone en producción.
-if (!config.isProduction) {
+// Herramientas de desarrollo (mocks y loggerTest): NO se exponen en producción.
+// Escriben datos de prueba en la base y generan logs de error, no tienen sentido en un servidor real.
+if (config.features.devTools) {
   app.use("/api/mocks", mocksRouter);
+  app.use("/api/loggerTest", loggerRouter);
 }
 
 app.use(notFoundHandler);

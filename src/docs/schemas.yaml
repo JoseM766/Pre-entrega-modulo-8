@@ -352,12 +352,15 @@ components:
           - INVALID_PRICE
           - INVALID_PRIORITY
           - INVALID_PRODUCT_STATUS
+          - INVALID_ROLE
+          - INVALID_SORT
           - INVALID_STOCK
           - MISSING_FIELDS
           - MOCK_GENERATION_ERROR
           - MOCK_NO_CUSTOMERS
           - MOCK_NO_DRIVERS
           - ORDER_NOT_FOUND
+          - PAYLOAD_TOO_LARGE
           - PRODUCT_EXISTS
           - PRODUCT_NOT_FOUND
           - ROUTE_NOT_FOUND
@@ -380,16 +383,6 @@ components:
           example: success
         payload:
           $ref: '#/components/schemas/User'
-    UserListResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: success
-        payload:
-          type: array
-          items:
-            $ref: '#/components/schemas/User'
     CurrentUserResponse:
       type: object
       properties:
@@ -499,3 +492,59 @@ components:
         totalPages:
           type: integer
           example: 5
+    UserPageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 42
+        totalPages:
+          type: integer
+          example: 5
+    HealthResponse:
+      type: object
+      description: Estado de la API. No expone información sensible (nada de URI de base de datos, secretos ni versiones).
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+          description: ok = todo bien; degraded = la API no puede atender (por ejemplo, sin conexión a la base de
+            datos)
+          example: ok
+        environment:
+          type: string
+          enum:
+          - development
+          - production
+          - test
+          example: production
+        uptime:
+          type: integer
+          description: Segundos desde que arrancó el proceso
+          example: 3600
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-18T20:15:00.000Z'
+          description: Fecha y hora actual del servidor
+        database:
+          type: string
+          enum:
+          - connected
+          - disconnected
+          example: connected

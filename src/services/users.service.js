@@ -5,7 +5,9 @@ import {
   ForbiddenError,
   FileRequiredError,
   InvalidDocumentTypeError,
+  InvalidRoleError,
 } from "../errors/index.js";
+import { parsePagination, buildPage } from "../utils/pagination.js";
 import {
   USER_ROLES,
   DOCUMENT_TYPES,
@@ -14,8 +16,19 @@ import {
 } from "../constants/index.js";
 import { buildFileMetadata, moveToFolder, deleteFileQuietly } from "../utils/file-storage.js";
 
-export const listUsers = async () => {
-  return usersRepository.findAllUsers();
+// Listado paginado y filtrable por rol (nunca devuelve la colección completa).
+export const listUsers = async ({ role, page, limit }) => {
+  if (role && !Object.values(USER_ROLES).includes(role)) {
+    throw new InvalidRoleError();
+  }
+
+  const filter = {};
+  if (role) filter.role = role;
+
+  const pagination = parsePagination({ page, limit });
+  const { data, total } = await usersRepository.findUsers({ filter, skip: pagination.skip, limit: pagination.limit });
+
+  return buildPage({ data, total, page: pagination.page, limit: pagination.limit });
 };
 
 // El repository devuelve null si el id es inválido o no existe: el service decide qué error es.

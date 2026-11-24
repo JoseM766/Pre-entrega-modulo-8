@@ -1,16 +1,14 @@
 import { logger } from "../config/logger.js";
 import * as productsRepository from "../repositories/products.repository.js";
-import { PRODUCT_STATUS } from "../constants/index.js";
-import { InvalidPriceError, InvalidProductStatusError, InvalidStockError, MissingFieldsError, ProductExistsError, ProductNotFoundError } from "../errors/index.js";
+import { PRODUCT_STATUS, PRODUCT_SORT_FIELDS } from "../constants/index.js";
+import { InvalidSortError, InvalidPriceError, InvalidProductStatusError, InvalidStockError, MissingFieldsError, ProductExistsError, ProductNotFoundError } from "../errors/index.js";
 import {
   hasRequiredProductFields,
   isValidPrice,
   isValidStock,
 } from "../utils/validators.js";
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 50;
+import { parsePagination, buildPage } from "../utils/pagination.js";
 
 // Regla de negocio: el estado del producto depende de su stock.
 // Sin stock no se puede vender, con stock sí. Nadie lo elige a mano.
@@ -75,27 +73,27 @@ export const listProducts = async ({ status, category, page, limit, sort }) => {
   filter.status = status || PRODUCT_STATUS.AVAILABLE;
   if (category) filter.category = category;
 
-  const currentPage = Math.max(parseInt(page, 10) || DEFAULT_PAGE, 1);
-  const pageLimit = Math.min(parseInt(limit, 10) || DEFAULT_LIMIT, MAX_LIMIT);
-  const skip = (currentPage - 1) * pageLimit;
+  const pagination = parsePagination({ page, limit });
 
-  // sort=price o sort=-price (el "-" indica descendente). Sin sort, el repository usa su orden por defecto.
-  const sortOption = sort ? sort.split(",").join(" ") : undefined;
+  // sort=price o sort=-price (el "-" indica descendente); solo se permiten los campos de PRODUCT_SORT_FIELDS.
+  // Sin sort, el repository usa su orden por defecto.
+  let sortOption;
+  if (sort) {
+    const fields = sort.split(",").map((field) => field.trim());
+    if (!fields.every((field) => PRODUCT_SORT_FIELDS.includes(field.replace(/^-/, "")))) {
+      throw new InvalidSortError(`Solo se puede ordenar por: ${PRODUCT_SORT_FIELDS.join(", ")} (con "-" delante para descendente)`);
+    }
+    sortOption = fields.join(" ");
+  }
 
   const { data, total } = await productsRepository.findProducts({
     filter,
     sort: sortOption,
-    skip,
-    limit: pageLimit,
+    skip: pagination.skip,
+    limit: pagination.limit,
   });
 
-  return {
-    data,
-    page: currentPage,
-    limit: pageLimit,
-    total,
-    totalPages: Math.ceil(total / pageLimit) || 0,
-  };
+  return buildPage({ data, total, page: pagination.page, limit: pagination.limit });
 };
 
 // --- Consultar un producto por id ---

@@ -21,7 +21,12 @@ const swaggerOptions = {
         "y el navegador la envía sola en los demás pedidos.\n\n" +
         "**Errores:** todos los errores de la API tienen la misma estructura (`ErrorResponse`).",
     },
-    servers: [{ url: `http://localhost:${config.port}`, description: "Servidor local" }],
+    servers: [
+      {
+        url: config.apiBaseUrl,
+        description: config.apiBaseUrl === `http://localhost:${config.port}` ? "Servidor local" : "Servidor de la API",
+      },
+    ],
     tags: [
       { name: "Sessions", description: "Registro, login y sesión (cookie con JWT)" },
       { name: "Users", description: "Consulta de usuarios (solo admin)" },
@@ -29,8 +34,8 @@ const swaggerOptions = {
       { name: "Orders", description: "Pedidos de los clientes" },
       { name: "Deliveries", description: "Entregas: asignación de pedidos a repartidores y seguimiento" },
       { name: "Mocks", description: "Datos simulados y carga de datos de prueba (solo fuera de producción)" },
-      { name: "Logger", description: "Herramienta interna para validar el logger (no es funcionalidad de negocio)" },
-      { name: "Health", description: "Estado del servidor" },
+      { name: "Logger", description: "Herramienta interna para validar el logger (no es funcionalidad de negocio; solo fuera de producción)" },
+      { name: "Health", description: "Health check: estado de la API, entorno, uptime y base de datos" },
     ],
   },
   apis: [path.join(docsDir, "*.yaml")],

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import multer from "multer";
@@ -19,7 +20,8 @@ export const UPLOAD_ROOT = path.join(process.cwd(), config.uploads.dir);
 
 export const getFolderPath = (folder) => path.join(UPLOAD_ROOT, folder);
 
-// Crea las carpetas si no existen (se llama al cargar el módulo y antes de cada guardado).
+// Crea las carpetas si no existen. Se llama UNA vez al cargar el módulo (arranque); la versión sincrónica
+// está bien ahí porque todavía no se atienden peticiones. Durante las peticiones se usa fs.promises (no bloquea).
 export const ensureUploadFolders = () => {
   Object.values(UPLOAD_FOLDERS).forEach((folder) => fs.mkdirSync(getFolderPath(folder), { recursive: true }));
 };
@@ -34,13 +36,13 @@ const buildFileName = (file) => {
 
 const buildStorage = (folder) =>
   multer.diskStorage({
+    // Asíncrono: no bloquea el Event Loop mientras se asegura que la carpeta exista.
     destination: (req, file, callback) => {
-      try {
-        ensureUploadFolders();
-        callback(null, getFolderPath(folder));
-      } catch (error) {
-        callback(error);
-      }
+      const folderPath = getFolderPath(folder);
+      fsPromises
+        .mkdir(folderPath, { recursive: true })
+        .then(() => callback(null, folderPath))
+        .catch(callback);
     },
     filename: (req, file, callback) => callback(null, buildFileName(file)),
   });

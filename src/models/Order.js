@@ -29,5 +29,9 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Índices que respaldan los listados (filtro + orden por fecha): evitan recorrer toda la colección.
+orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+
 const Order = mongoose.model("Order", orderSchema);
 export default Order;

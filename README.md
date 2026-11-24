@@ -1,152 +1,171 @@
-# ShipNow — Pre-entrega Módulo 7: Carga de archivos, documentos y comprobantes
+# ShipNow — Pre-entrega Módulo 8: Performance, escalabilidad y Docker
 
-Carga de archivos con **Multer** (`multipart/form-data`): se validan, se guardan en carpetas del servidor y se registran **solo sus metadatos** en MongoDB, asociados a un usuario o a un pedido. Está integrado con la arquitectura por capas, el manejo de errores, el logger, Swagger y los tests.
+ShipNow API preparada para ejecutarse de forma estable y lista para despliegue: buenas prácticas de performance, configuración por entorno validada, health check y contenedor Docker.
 
-## Cómo correr el proyecto
+## Variables de entorno
+
+Hay un archivo modelo por entorno (los reales `.env`, `.env.test` y `.env.production` **no se suben al repo**):
+
+| Entorno | Modelo | Archivo real |
+|---|---|---|
+| Desarrollo | `.env.example` | `.env` |
+| Testing | `.env.test.example` | `.env.test` |
+| Producción / Docker | `.env.production.example` | `.env.production` |
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `NODE_ENV` | Sí | `development`, `production` o `test` |
+| `PORT` | Sí | Puerto de la API |
+| `MONGODB_URI` | Sí | URI de MongoDB (debe empezar con `mongodb://` o `mongodb+srv://`) |
+| `JWT_SECRET` | Sí | Secreto del JWT. **En producción, mínimo 16 caracteres** |
+| `JWT_EXPIRES_IN` | No | Expiración del JWT (por defecto `1h`) |
+| `LOG_LEVEL` | No | `debug`, `http`, `info`, `warning`, `error` o `fatal`. Por defecto: `debug` en desarrollo/test, `info` en producción |
+| `SWAGGER_ENABLED` | No | `true` (por defecto) o `false` para apagar Swagger |
+| `API_BASE_URL` | No | URL pública de la API, que se muestra en Swagger (por defecto `http://localhost:PORT`) |
+
+La API no consume servicios externos aparte de MongoDB, por eso no hay otras URLs. No hay valores sensibles en el código.
+
+**Validación al iniciar:** si falta una variable obligatoria o alguna tiene un valor inválido (puerto no numérico, `NODE_ENV` desconocido, URI que no es de MongoDB, `LOG_LEVEL` inválido, secreto corto en producción...), la app **no arranca** y muestra un mensaje claro, por ejemplo:
+
+```
+[fatal] Faltan variables de entorno obligatorias: MONGODB_URI. Revisá tu archivo .env (podés copiar .env.example).
+```
+
+## Cómo correr la API localmente
 
 ```bash
 npm install
 cp .env.example .env     # completar MONGODB_URI y JWT_SECRET
-npm run seed             # usuarios de prueba (admin, user, driver)
-npm run dev
+npm run seed             # opcional: usuarios y productos de prueba
+npm run dev              # desarrollo, con reinicio automático
+npm start                # modo normal
 ```
 
-La documentación interactiva está en `http://localhost:8080/api/docs`.
-
-## Endpoints
-
-| Método | Ruta | Campo del archivo | Quién | Descripción |
-|---|---|---|---|---|
-| POST | `/api/users/:id/documents` | `document` | El propio usuario o un admin | Sube un documento del usuario |
-| GET | `/api/users/:id/documents` | — | El propio usuario o un admin | Lista los metadatos de sus documentos |
-| POST | `/api/orders/:id/proof` | `proof` | El repartidor asignado al pedido o un admin | Sube el comprobante de entrega de un pedido |
-
-**Campos adicionales (`POST /api/users/:id/documents`):** `type` (opcional). Valores permitidos: `user_document` (por defecto) y `driver_license`. Se envía como campo de texto del form-data.
-
-**Respuestas exitosas (`201`):**
-- Documento de usuario: devuelve `{ status, message, payload: { id, documents: [...] } }` con todos los documentos del usuario.
-- Comprobante: devuelve el **pedido actualizado**, con su lista `proofs`.
-
-## Cómo probarlo
-
-**Con Swagger** (`/api/docs`): hacé login con `POST /api/sessions/login` (por ejemplo `driver@shipnow.com` / `driver1234`), abrí el endpoint, tocá **Try it out**, elegí el archivo en el campo `document` (o `proof`) y **Execute**.
-
-**Con Postman:** método `POST`, pestaña Body → `form-data`; agregá una clave `document` de tipo **File** y, si querés, una clave `type` de tipo Text.
-
-**Con curl:**
+## Cómo correr los tests
 
 ```bash
-# login (guarda la cookie)
-curl -c cookies.txt -H "Content-Type: application/json" \
-  -d '{"email":"driver@shipnow.com","password":"driver1234"}' http://localhost:8080/api/sessions/login
-
-# subir una licencia (reemplazá USER_ID)
-curl -b cookies.txt -F "document=@licencia.pdf;type=application/pdf" -F "type=driver_license" \
-  http://localhost:8080/api/users/USER_ID/documents
-```
-
-## Configuración de Multer (centralizada, separada de los routers)
-
-| Archivo | Qué hace |
-|---|---|
-| `src/config/multer.config.js` | Define **dónde se guardan** los archivos (`diskStorage`), **cómo se nombran**, **qué tipos se aceptan** (`fileFilter`) y el **tamaño máximo** (`limits`) |
-| `src/middlewares/upload.middleware.js` | Crea los middlewares `uploadUserDocument` y `uploadProof` y **traduce los errores de Multer** al sistema de errores del proyecto |
-| `src/utils/file-storage.js` | Mover y borrar archivos y armar los metadatos |
-
-Los routers solo importan el middleware; no configuran Multer.
-
-- **Nombres:** `<fecha>-<uuid><extensión>`, generados por el servidor. La extensión sale del tipo MIME validado, nunca del nombre que manda el cliente, así que un nombre como `../../x.pdf` no puede afectar dónde se guarda, y dos archivos con el mismo nombre no se pisan.
-- **Tipos aceptados:** PDF (`application/pdf`), JPG (`image/jpeg`) y PNG (`image/png`). El MIME type **y** la extensión deben coincidir.
-- **Tamaño máximo:** 5 MB. **Un solo archivo** por petición.
-- Las constantes (tipos, tamaño, campos, carpetas) están en `src/constants/index.js`.
-
-## Estructura de carpetas
-
-```
-uploads/
-├── documents/   documentos de usuario        (type = user_document)
-├── licenses/    licencias de repartidor      (type = driver_license)
-└── proofs/      comprobantes de entrega      (type = delivery_proof)
-```
-
-La carpeta `uploads/` está en `.gitignore`: **los archivos subidos no van al repositorio**. Las subcarpetas se crean solas al arrancar. Los archivos **no se sirven públicamente**: solo se guarda la referencia.
-
-## Qué se guarda en la base (solo metadatos)
-
-El archivo vive en el servidor. En MongoDB (en `documents` del usuario o `proofs` del pedido) se guarda:
-
-```json
-{
-  "originalName": "licencia.pdf",
-  "fileName": "1795296339996-d9cd6685-a257-4e70-bb46-320861ef45e2.pdf",
-  "path": "uploads/licenses/1795296339996-d9cd6685-a257-4e70-bb46-320861ef45e2.pdf",
-  "mimeType": "application/pdf",
-  "size": 24533,
-  "type": "driver_license",
-  "uploadedAt": "2026-11-21T21:25:40.004Z"
-}
-```
-
-Nombre original, nombre generado, ruta, tipo MIME, tamaño (bytes), tipo de documento y fecha de carga.
-
-## Validaciones y errores
-
-Todos usan el formato de error del proyecto (`{ status, error, message }`) y salen únicamente desde el middleware global.
-
-| Código | HTTP | Cuándo |
-|---|---|---|
-| `FILE_REQUIRED` | 400 | No se envió ningún archivo |
-| `INVALID_FILE_TYPE` | 400 | Tipo o extensión no permitidos |
-| `INVALID_FILE_FIELD` | 400 | El archivo vino en un campo distinto al esperado (`document` / `proof`) o se enviaron varios |
-| `INVALID_DOCUMENT_TYPE` | 400 | El `type` enviado no es válido |
-| `FILE_TOO_LARGE` | 413 | El archivo supera los 5 MB |
-| `UPLOAD_ERROR` | 500 | No se pudo guardar el archivo (el detalle interno no se muestra al cliente) |
-| `USER_NOT_FOUND` / `ORDER_NOT_FOUND` | 404 | La entidad no existe |
-| `UNAUTHORIZED` / `FORBIDDEN` | 401 / 403 | Sin sesión o sin permisos |
-
-**No quedan archivos huérfanos:** si la carga falla después de que Multer ya guardó el archivo (usuario inexistente, tipo de documento inválido, falla de la base, etc.), el service lo borra.
-
-## Logger
-
-| Evento | Nivel |
-|---|---|
-| Documento cargado (usuario, tipo, archivo, tamaño) | `info` |
-| Comprobante asociado a un pedido | `info` |
-| Intento de subir un tipo de archivo no permitido, archivo demasiado grande, campo incorrecto, entidad inexistente | `warning` |
-| Error al guardar el archivo o la base | `error` |
-
-## Swagger
-
-Los endpoints están documentados como `multipart/form-data` en `/api/docs` (tags **Users** y **Orders**), indicando el campo del archivo, el campo `type` y sus valores permitidos, los formatos y el tamaño máximo, la respuesta exitosa y todos los errores posibles. También se documentan los schemas `FileMetadata`, `DocumentType` y `UserDocumentsResponse`.
-
-## Tests
-
-```bash
+cp .env.test.example .env.test    # con una base de datos de TEST (el nombre debe contener "test")
 npm test
 ```
 
-`tests/uploads.test.js` cubre:
+## Cómo acceder a Swagger
 
-- **Carga correcta:** PDF, JPG y PNG; archivo de exactamente 5 MB; licencia en `licenses`; varios documentos que se acumulan; nombre malicioso y nombres con acentos; comprobante asociado al pedido. Se verifica la estructura de los metadatos, que el archivo exista en disco y que quede guardado en la base.
-- **Errores:** archivo faltante, tipo inválido (varios casos), campo incorrecto, archivo demasiado grande, tipo de documento inválido, usuario o pedido inexistente, sin sesión, sin permisos, y fallas al guardar. En cada caso se verifica además que **no quede ningún archivo en el servidor**.
+`http://localhost:8080/api/docs` (o el puerto configurado). Swagger está disponible en todos los entornos, incluida producción, salvo que se defina `SWAGGER_ENABLED=false`.
 
-Los tests guardan los archivos en `uploads/test/`, que se limpia antes de cada test y al terminar la suite. `tests/swagger.test.js` comprueba que la documentación de los endpoints de carga coincida con la API.
+## Health check
+
+`GET /api/health` devuelve el estado de la API, el entorno, el uptime y el estado de la base de datos:
+
+```json
+{
+  "status": "ok",
+  "environment": "production",
+  "uptime": 3600,
+  "timestamp": "2026-11-21T20:00:00.000Z",
+  "database": "connected"
+}
+```
+
+- Responde `200` si todo está bien y `503` (`"status": "degraded"`) si no hay conexión con la base de datos, para que Docker o un balanceador lo detecten por el código HTTP.
+- **No expone información sensible:** ni la URI de la base, ni secretos, ni rutas internas, ni versiones.
+
+## Performance
+
+- **Listados paginados y filtrables:** usuarios, pedidos, entregas y productos usan `page` y `limit` (máximo **50** por página) y filtros (`role`, `status`, `category`). Valores inválidos vuelven al valor por defecto. Ningún endpoint devuelve una colección completa.
+- **Orden controlado:** el listado de productos solo permite ordenar por `name`, `price`, `stock`, `category` y `createdAt` (otro campo responde `400 INVALID_SORT`).
+- **Índices** en las colecciones que respaldan los filtros y el orden por fecha de los listados (pedidos, entregas, productos y usuarios). Las consultas usan `.lean()` y proyecciones.
+- **Carga de archivos con límites:** 5 MB por archivo, un solo archivo por petición, tipos restringidos (PDF, JPG, PNG) y errores controlados. Los archivos van a `uploads/`, que está fuera del repo.
+- **Payloads:** los bodies JSON tienen un máximo de 100 kb (más grande responde `413 PAYLOAD_TOO_LARGE`), las respuestas se comprimen con gzip, los mocks tienen un máximo de 100 por pedido y la cabecera `X-Powered-By` está desactivada.
+- **Event Loop:** no hay operaciones sincrónicas de archivos durante las peticiones (la carpeta de uploads se crea con `fs.promises`); las contraseñas se hashean con bcrypt asíncrono.
+- **Logs sin exceso:** en producción el nivel por defecto es `info` (no se registran `debug` ni `http`).
+- **Apagado ordenado:** al recibir `SIGTERM`/`SIGINT` el servidor termina las peticiones en curso y cierra la conexión a la base antes de salir.
+
+## Criterio aplicado a los endpoints internos en producción
+
+| Endpoint | En producción | Por qué |
+|---|---|---|
+| `/api/mocks/*` | **No disponible** (`404 ROUTE_NOT_FOUND`) | Inserta datos de prueba en la base: no tiene sentido en un servidor real |
+| `/api/loggerTest` | **No disponible** (`404 ROUTE_NOT_FOUND`) | Genera logs de error y fatal a propósito y no requiere autenticación |
+| `/api/docs` (Swagger) | **Disponible** por defecto; se apaga con `SWAGGER_ENABLED=false` | La documentación no contiene secretos y es necesaria para probar el contenedor; quien no quiera exponerla la desactiva |
+| `/api/health` | **Disponible** | Lo usan el `HEALTHCHECK` de Docker y los balanceadores; no expone datos sensibles |
+
+Mocks y loggerTest dependen de `NODE_ENV`, no de una variable que se pueda activar por error.
+
+## Docker
+
+**Puerto:** la API usa el **8080** por defecto (variable `PORT`). La imagen tiene `EXPOSE 8080`.
+
+**Construir la imagen** (hacé antes `npm install` para que `package-lock.json` esté actualizado):
+
+```bash
+docker build -t shipnow-api .
+```
+
+**Ejecutar el contenedor**, pasando las variables de entorno desde un archivo externo:
+
+```bash
+cp .env.production.example .env.production     # y completar MONGODB_URI y JWT_SECRET
+docker run -d --name shipnow-api \
+  --env-file .env.production \
+  -p 8080:8080 \
+  -v shipnow_uploads:/app/uploads \
+  -v shipnow_logs:/app/logs \
+  shipnow-api
+```
+
+**Probar** que funciona:
+
+```bash
+curl http://localhost:8080/api/health          # health check
+# Swagger:  http://localhost:8080/api/docs
+curl "http://localhost:8080/api/products"      # endpoint principal
+docker logs shipnow-api                         # logs
+docker stop shipnow-api                         # apagado ordenado
+```
+
+Si en `.env.production` ponés `PORT=3000`, mapeá ese puerto: `-p 3000:3000`.
+
+**Aclaración sobre `MONGODB_URI`:** dentro del contenedor, `localhost` es el propio contenedor y no tu máquina. Usá una base en la nube (Atlas), `host.docker.internal` para un Mongo instalado en tu máquina, o la opción de abajo.
+
+**Opcional, con Mongo incluido** (para probar sin Atlas):
+
+```bash
+cp .env.production.example .env.production     # completar JWT_SECRET
+docker compose up --build
+```
+
+`docker-compose.yml` levanta la API más una base MongoDB local y usa volúmenes para la base, los archivos subidos y los logs.
+
+**Qué hace el Dockerfile:** parte de `node:22-slim`; instala solo las dependencias de producción (`npm ci --omit=dev`); copia únicamente `package.json`, `package-lock.json` y `src/`; crea las carpetas `logs` y `uploads`; corre como usuario sin privilegios (`node`); define un `HEALTHCHECK` que consulta `/api/health`; e inicia con `node src/server.js` (el mismo comando que `npm start`, ejecutado directo para que Node reciba la señal de apagado de Docker).
+
+**`.dockerignore`:** deja fuera `node_modules`, `.env` y `.env.*`, `.git`, `logs`, `uploads`, `tests`, `coverage`, archivos temporales y de documentación, para que nada sensible ni innecesario entre a la imagen.
+
+## Archivos que no deben subirse al repositorio
+
+`node_modules/`, `.env`, `.env.test`, `.env.production` (contienen credenciales), `logs/` y `uploads/` (los genera la aplicación). Todos están en `.gitignore`.
+
+## Logs y uploads en contenedores
+
+- **Logs:** van a la consola (se ven con `docker logs`) y los errores (`error` y `fatal`) también a `logs/`, con rotación diaria (14 días, 10 MB por archivo). Con el volumen `shipnow_logs` sobreviven a un reinicio del contenedor.
+- **Uploads:** el sistema de archivos de un contenedor es descartable, por eso `uploads/` se monta como volumen. Es una solución para una sola instancia: si la API se escala a varias réplicas, los archivos deberían ir a un almacenamiento compartido (por ejemplo un bucket S3), no al disco local.
+
+## Dependencias
+
+Se actualizaron las dependencias con `npm audit fix` y `bcrypt` a la versión 6 (que ya incluye sus binarios). Quedan 3 avisos de severidad moderada en dependencias internas de `swagger-jsdoc` (`glob` y `minimatch`), que solo leen los archivos `.yaml` propios al arrancar y no reciben datos de usuarios.
 
 ## Archivos de esta entrega
 
 ```
+Dockerfile · .dockerignore · docker-compose.yml
+.env.example · .env.production.example
 src/
-├── config/multer.config.js           # configuración centralizada de Multer
-├── middlewares/upload.middleware.js  # middlewares de carga + traducción de errores
-├── utils/file-storage.js             # mover/borrar archivos, metadatos
-├── models/file.schema.js             # esquema de metadatos (documents / proofs)
-├── dto/file.dto.js
-├── services/users.service.js         # addUserDocument, getUserDocuments
-├── services/orders.service.js        # addOrderProof
-├── controllers/ · routes/ · repositories/
-├── docs/                             # Swagger (multipart/form-data)
-└── constants/index.js                # DOCUMENT_TYPES, UPLOAD_FOLDERS, FILE_UPLOAD
+├── config/env.config.js         # variables por entorno y validación al iniciar
+├── services/health.service.js · controllers/health.controller.js · routes/health.router.js
+├── utils/pagination.js          # paginación común
+├── models/                      # índices
+├── app.js · server.js           # endpoints internos según entorno, compresión, apagado ordenado
+└── docs/                        # Swagger actualizado
 tests/
-├── uploads.test.js
-└── helpers/files.js
+├── production.test.js           # comportamiento en producción y validación de variables
+└── performance.test.js          # paginación, índices, compresión, límites
 ```

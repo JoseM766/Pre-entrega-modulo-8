@@ -1,5 +1,4 @@
 import { expect } from "chai";
-import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import request from "supertest";
 import app from "../src/app.js";
@@ -523,15 +522,15 @@ describe("Carga de archivos", () => {
 
       describe("fallas al guardar", () => {
         const originalFindByIdAndUpdate = Order.findByIdAndUpdate;
-        const originalMkdirSync = fs.mkdirSync;
+        const originalMkdir = fsPromises.mkdir;
         afterEach(() => {
           Order.findByIdAndUpdate = originalFindByIdAndUpdate;
-          fs.mkdirSync = originalMkdirSync;
+          fsPromises.mkdir = originalMkdir;
         });
 
         it("500 UPLOAD_ERROR si no se puede escribir en la carpeta de uploads (sin filtrar el detalle interno)", async () => {
           const { admin, order } = await setup();
-          fs.mkdirSync = () => {
+          fsPromises.mkdir = async () => {
             throw new Error("EACCES: permission denied, mkdir");
           };
 

@@ -18,5 +18,8 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Índice que respalda el listado público (estado + categoría).
+productSchema.index({ status: 1, category: 1 });
+
 const Product = mongoose.model("Product", productSchema);
 export default Product;

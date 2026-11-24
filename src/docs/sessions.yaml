@@ -4,22 +4,35 @@ paths:
     get:
       tags:
       - Health
-      summary: Estado del servidor
-      description: Comprueba que la API está activa.
+      summary: Health check
+      description: 'Estado de la API: `status`, entorno, uptime (segundos), fecha y hora, y estado de la conexión
+        a la base de datos. Responde `200` si todo está bien y `503` si la base de datos no está conectada. No expone
+        información sensible. Es el que usa el `HEALTHCHECK` de Docker.'
       responses:
         '200':
-          description: Servidor activo
+          description: API funcionando
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  message:
-                    type: string
-                    example: Servidor activo
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                environment: production
+                uptime: 3600
+                timestamp: '2026-11-21T20:00:00.000Z'
+                database: connected
+        '503':
+          description: 'La API no puede atender: no hay conexión a la base de datos'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                environment: production
+                uptime: 12
+                timestamp: '2026-11-21T20:00:00.000Z'
+                database: disconnected
   /api/sessions/register:
     post:
       tags:

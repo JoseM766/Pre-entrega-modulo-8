@@ -138,6 +138,35 @@ describe("Swagger", () => {
       });
     });
 
+    describe("health check, listado de usuarios y endpoints internos", () => {
+      it("GET /api/health documenta 200 y 503 con el schema HealthResponse (sin información sensible)", () => {
+        const { responses } = swaggerSpecs.paths["/api/health"].get;
+        expect(Object.keys(responses)).to.have.members(["200", "503"]);
+
+        const health = swaggerSpecs.components.schemas.HealthResponse;
+        expect(health.properties).to.have.all.keys("status", "environment", "uptime", "timestamp", "database");
+        expect(health.properties.status.enum).to.have.members(["ok", "degraded"]);
+      });
+
+      it("GET /api/users documenta la paginación y el filtro por rol", () => {
+        const operation = swaggerSpecs.paths["/api/users"].get;
+        expect(operation.parameters.map((p) => p.name)).to.have.members(["role", "page", "limit"]);
+        expect(operation.parameters.find((p) => p.name === "limit").schema.maximum).to.equal(50);
+        expect(Object.keys(operation.responses["400"].content["application/json"].examples)).to.deep.equal(["INVALID_ROLE"]);
+      });
+
+      it("GET /api/products documenta los campos permitidos para ordenar y el error INVALID_SORT", () => {
+        const operation = swaggerSpecs.paths["/api/products"].get;
+        expect(operation.parameters.find((p) => p.name === "sort").description).to.include("createdAt");
+        expect(Object.keys(operation.responses["400"].content["application/json"].examples)).to.include("INVALID_SORT");
+      });
+
+      it("aclara que el logger de prueba y los mocks no están disponibles en producción", () => {
+        expect(swaggerSpecs.paths["/api/loggerTest"].get.description).to.match(/no está disponible en producción/i);
+        expect(swaggerSpecs.paths["/api/mocks/users"].get.description).to.match(/no está disponible si `NODE_ENV=production`/i);
+      });
+    });
+
     it("documenta el endpoint del logger aclarando que no es funcionalidad de negocio", () => {
       const operation = swaggerSpecs.paths["/api/loggerTest"].get;
       expect(operation.tags).to.deep.equal(["Logger"]);

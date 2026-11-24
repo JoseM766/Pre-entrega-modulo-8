@@ -26,8 +26,13 @@ export const createUser = async (userData) => {
   });
 };
 
-export const findAllUsers = () => {
-  return User.find().select(PUBLIC_PROJECTION).lean();
+export const findUsers = async ({ filter, skip, limit }) => {
+  const [data, total] = await Promise.all([
+    User.find(filter).select(PUBLIC_PROJECTION).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    User.countDocuments(filter),
+  ]);
+
+  return { data, total };
 };
 
 export const findUserById = async (id) => {
@@ -45,8 +50,9 @@ export const insertManyUsers = async (usersData) => {
   return docs.map(withoutPassword);
 };
 
-export const findUsersByRole = (role) => {
-  return User.find({ role }).select(PUBLIC_PROJECTION).lean();
+// Con límite: nunca se carga una colección completa en memoria.
+export const findUsersByRole = (role, limit = 100) => {
+  return User.find({ role }).select(PUBLIC_PROJECTION).sort({ createdAt: -1 }).limit(limit).lean();
 };
 
 // Agrega los metadatos de un documento al usuario y devuelve el usuario actualizado.

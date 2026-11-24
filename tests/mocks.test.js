@@ -17,6 +17,7 @@ import {
 } from "../src/constants/index.js";
 
 const ALL_ORDERS = { filter: {}, skip: 0, limit: 100 };
+const allUsers = async () => (await usersRepository.findUsers(ALL_ORDERS)).data;
 const MOCK_ROLES = [USER_ROLES.USER, USER_ROLES.DRIVER];
 
 describe("Mocks", () => {
@@ -67,7 +68,7 @@ describe("Mocks", () => {
       await request(app).get("/api/mocks/orders?qty=5");
       await request(app).get("/api/mocks/deliveries?qty=5");
 
-      expect(await usersRepository.findAllUsers()).to.have.lengthOf(0);
+      expect(await allUsers()).to.have.lengthOf(0);
       expect((await ordersRepository.findOrders(ALL_ORDERS)).total).to.equal(0);
       expect((await deliveriesRepository.findDeliveries(ALL_ORDERS)).total).to.equal(0);
     });
@@ -148,7 +149,7 @@ describe("Mocks", () => {
       expect(res.status).to.equal(201);
       expect(res.body).to.deep.equal({ insertados: 4, coleccion: "users" });
 
-      const saved = await usersRepository.findAllUsers();
+      const saved = await allUsers();
       expect(saved).to.have.lengthOf(4);
       saved.forEach((user) => {
         expect(MOCK_ROLES).to.include(user.role);
@@ -160,13 +161,13 @@ describe("Mocks", () => {
       const res = await request(app).post("/api/mocks/seed?qty=3&role=driver");
 
       expect(res.body.insertados).to.equal(3);
-      const saved = await usersRepository.findAllUsers();
+      const saved = await allUsers();
       expect(saved.every((user) => user.role === USER_ROLES.DRIVER)).to.equal(true);
     });
 
     it("los usuarios insertados tienen la contraseña hasheada (se puede iniciar sesión con la de los mocks)", async () => {
       await request(app).post("/api/mocks/seed?qty=1");
-      const [user] = await usersRepository.findAllUsers();
+      const [user] = await allUsers();
 
       const res = await request(app).post("/api/sessions/login").send({ email: user.email, password: "coder123" });
 
@@ -177,7 +178,7 @@ describe("Mocks", () => {
       const res = await request(app).post("/api/mocks/seed?qty=-2");
 
       expectError(res, 400, "INVALID_MOCK_AMOUNT");
-      expect(await usersRepository.findAllUsers()).to.have.lengthOf(0);
+      expect(await allUsers()).to.have.lengthOf(0);
     });
 
     it("400 INVALID_MOCK_ROLE con un rol no permitido", async () => {
@@ -274,7 +275,7 @@ describe("Mocks", () => {
       it(`400 INVALID_MOCK_AMOUNT con ${name}`, async () => {
         const res = await request(app).post("/api/mocks/generateData").send(body);
         expectError(res, 400, "INVALID_MOCK_AMOUNT");
-        expect(await usersRepository.findAllUsers()).to.have.lengthOf(0);
+        expect(await allUsers()).to.have.lengthOf(0);
       });
     }
 
@@ -294,7 +295,7 @@ describe("Mocks", () => {
       const res = await request(app).post("/api/mocks/generateData").send({ users: 2, orders: 2, deliveries: 1 });
 
       expectError(res, 400, "MOCK_NO_DRIVERS");
-      expect(await usersRepository.findAllUsers()).to.have.lengthOf(0);
+      expect(await allUsers()).to.have.lengthOf(0);
       expect((await ordersRepository.findOrders(ALL_ORDERS)).total).to.equal(0);
     });
 

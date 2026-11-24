@@ -115,6 +115,14 @@ describe("Products", () => {
       expect(res.body.data[0].name).to.equal("B");
     });
 
+    it("400 INVALID_SORT si se ordena por un campo no permitido", async () => {
+      for (const sort of ["password", "-secret", "price,hack"]) {
+        const res = await request(app).get(`/api/products?sort=${sort}`);
+        expectError(res, 400, "INVALID_SORT");
+        expect(res.body.message).to.include("name, price, stock, category, createdAt");
+      }
+    });
+
     it("400 INVALID_PRODUCT_STATUS con un estado inexistente", async () => {
       const res = await request(app).get("/api/products?status=foo");
       expectError(res, 400, "INVALID_PRODUCT_STATUS");

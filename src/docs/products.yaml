@@ -41,7 +41,8 @@ paths:
       - name: sort
         in: query
         required: false
-        description: 'Orden: campo o lista separada por comas; con `-` adelante es descendente'
+        description: 'Orden: campo o lista separada por comas; con `-` adelante es descendente. Campos permitidos:
+          `name`, `price`, `stock`, `category`, `createdAt`'
         schema:
           type: string
           example: -price
@@ -53,7 +54,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductListResponse'
         '400':
-          description: 'Datos inválidos: INVALID_PRODUCT_STATUS'
+          description: 'Datos inválidos: INVALID_PRODUCT_STATUS, INVALID_SORT'
           content:
             application/json:
               schema:
@@ -65,6 +66,13 @@ paths:
                     status: error
                     error: INVALID_PRODUCT_STATUS
                     message: El estado indicado no es válido para un producto
+                INVALID_SORT:
+                  summary: INVALID_SORT
+                  value:
+                    status: error
+                    error: INVALID_SORT
+                    message: 'Solo se puede ordenar por: name, price, stock, category, createdAt (con "-" delante
+                      para descendente)'
         '500':
           description: 'Error interno: INTERNAL_SERVER_ERROR, DATABASE_ERROR'
           content:

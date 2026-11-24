@@ -3,6 +3,7 @@ import { logger } from "../config/logger.js";
 import {
   AppError,
   InvalidJsonError,
+  PayloadTooLargeError,
   ValidationError,
   DuplicateKeyError,
   DatabaseError,
@@ -21,6 +22,11 @@ const normalizeError = (error) => {
   // JSON mal formado en el body (lo detecta express.json)
   if (error?.type === "entity.parse.failed") {
     return new InvalidJsonError(undefined, error.message);
+  }
+
+  // Body más grande que el límite de express.json (100 kb por defecto): 413, no un 500
+  if (error?.type === "entity.too.large") {
+    return new PayloadTooLargeError(undefined, error.message);
   }
 
   // Errores de Mongoose / MongoDB que se escaparon de un repository

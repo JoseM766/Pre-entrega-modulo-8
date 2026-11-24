@@ -14,7 +14,7 @@ const loadConfig = async () => {
 const startServer = async () => {
   const config = await loadConfig();
   const { logger, closeLogger } = await import("./config/logger.js");
-  const { connectDB } = await import("./config/db.config.js");
+  const { connectDB, disconnectDB } = await import("./config/db.config.js");
   const { default: app } = await import("./app.js");
 
   // Registra el error fatal, espera a que el logger termine de escribir y recién ahí corta el proceso.
@@ -36,9 +36,27 @@ const startServer = async () => {
     return exitWithFatal(`No se pudo conectar a MongoDB: ${error.message}`, error);
   }
 
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, () => {
     logger.info(`Servidor ShipNow escuchando en el puerto ${config.port} (${config.nodeEnv})`);
   });
+
+  // Apagado ordenado (Docker envía SIGTERM al detener el contenedor; Ctrl+C envía SIGINT):
+  // se deja de aceptar conexiones, se terminan las peticiones en curso y se cierra la base.
+  const shutdown = (signal) => {
+    logger.info(`Señal ${signal} recibida: cerrando el servidor...`);
+
+    const forceExit = setTimeout(() => process.exit(1), 10000); // si algo se traba, se corta igual
+    forceExit.unref();
+
+    server.close(async () => {
+      await disconnectDB();
+      logger.info("Servidor detenido correctamente");
+      await closeLogger();
+      process.exit(0);
+    });
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 };
 
 startServer();

@@ -144,3 +144,6 @@ export const FILE_UPLOAD = Object.freeze({
     "image/png": Object.freeze([".png"]),
   }),
 });
+
+// Campos por los que se permite ordenar el listado de productos (evita ordenar por campos sin control).
+export const PRODUCT_SORT_FIELDS = Object.freeze(["name", "price", "stock", "category", "createdAt"]);

@@ -15,5 +15,9 @@ const deliverySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Índices que respaldan los listados (filtro + orden por fecha). "order" ya es único.
+deliverySchema.index({ driver: 1, createdAt: -1 });
+deliverySchema.index({ status: 1, createdAt: -1 });
+
 const Delivery = mongoose.model("Delivery", deliverySchema);
 export default Delivery;

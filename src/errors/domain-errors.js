@@ -50,3 +50,6 @@ export const InvalidFileFieldError = defineError("InvalidFileFieldError", ERROR_
 export const InvalidDocumentTypeError = defineError("InvalidDocumentTypeError", ERROR_CODES.INVALID_DOCUMENT_TYPE);
 export const FileTooLargeError = defineError("FileTooLargeError", ERROR_CODES.FILE_TOO_LARGE);
 export const UploadError = defineError("UploadError", ERROR_CODES.UPLOAD_ERROR);
+export const InvalidRoleError = defineError("InvalidRoleError", ERROR_CODES.INVALID_ROLE);
+export const InvalidSortError = defineError("InvalidSortError", ERROR_CODES.INVALID_SORT);
+export const PayloadTooLargeError = defineError("PayloadTooLargeError", ERROR_CODES.PAYLOAD_TOO_LARGE);

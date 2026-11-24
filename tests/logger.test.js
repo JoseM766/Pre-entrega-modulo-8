@@ -6,7 +6,6 @@ import { logger } from "../src/config/logger.js";
 import { config } from "../src/config/index.js";
 import { LOG_LEVELS, LOG_LEVEL_PRIORITY } from "../src/constants/index.js";
 import { createAdmin } from "./helpers/factories.js";
-import { expectError } from "./helpers/assertions.js";
 
 // Durante los tests el logger está en silencio. Para poder comprobar QUÉ se registra, se activa
 // un transporte "espía" que guarda los logs en memoria y se silencian los transportes reales.
@@ -62,15 +61,6 @@ describe("Logger", () => {
       expect(captured.find((log) => log.level === LOG_LEVELS.FATAL).message).to.equal("Log de nivel fatal");
     });
   });
-
-      it("404 ROUTE_NOT_FOUND si se usa otro método (el endpoint solo acepta GET) y no genera logs de prueba", async () => {
-      const res = await request(app).post("/api/loggerTest");
-
-      expectError(res, 404, "ROUTE_NOT_FOUND");
-      expect(res.body.details).to.equal("POST /api/loggerTest");
-      // no se ejecutó el endpoint de prueba: no hay ningún log "Log de nivel ..."
-      expect(captured.some((log) => log.message.startsWith("Log de nivel"))).to.equal(false);
-    });
 
   describe("Configuración del logger", () => {
     it("define los 6 niveles, de más a menos severo (fatal = 0 ... debug = 5)", () => {

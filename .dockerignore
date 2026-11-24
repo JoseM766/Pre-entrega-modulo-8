@@ -1,0 +1,36 @@
+# Dependencias (se instalan dentro de la imagen)
+node_modules
+npm-debug.log*
+
+# Variables de entorno y secretos: NUNCA dentro de la imagen
+.env
+.env.*
+
+# Control de versiones y editor
+.git
+.gitignore
+.vscode
+
+# Datos generados por la app (logs y archivos subidos)
+logs
+uploads
+*.log
+
+# Tests y cobertura (no se necesitan en producción)
+tests
+coverage
+.nyc_output
+.mocharc.cjs
+
+# Archivos temporales
+tmp
+temp
+*.tmp
+*.swp
+.DS_Store
+
+# Archivos de Docker y documentación
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.md

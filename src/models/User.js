@@ -42,6 +42,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Índice que respalda el filtro por rol y el orden por fecha.
+userSchema.index({ role: 1, createdAt: -1 });
+
 const User = mongoose.model("User", userSchema);
 
 export default User;

@@ -4,8 +4,17 @@ import { toFileDTO } from "../dto/file.dto.js";
 
 export const listUsers = async (req, res, next) => {
   try {
-    const users = await usersService.listUsers();
-    res.status(200).json({ status: "success", payload: users.map(toUserDTO) });
+    const { role, page, limit } = req.query;
+    const result = await usersService.listUsers({ role, page, limit });
+
+    res.status(200).json({
+      status: "success",
+      data: result.data.map(toUserDTO),
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
+    });
   } catch (error) {
     next(error);
   }
